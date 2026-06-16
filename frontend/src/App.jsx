@@ -17,7 +17,7 @@ function App() {
 
     try {
       // Notice the URL here now has /api/chat at the end!
-      const response = await fetch('https://aichatapp-production-79ee.up.railway.app/api/chat', {
+      const response = await fetch('https://aichatapp-production-79ee.up.railway.app/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage.text }),
