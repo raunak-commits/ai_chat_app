@@ -1,10 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 
 function App() {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(() => {
+    const saved = localStorage.getItem("chatHistory");
+    return saved ? JSON.parse(saved) : [];
+  });
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem("chatHistory", JSON.stringify(messages));
+  }, [messages]);
 
   const sendMessage = async (e) => {
     e.preventDefault();
@@ -16,7 +23,6 @@ function App() {
     setIsLoading(true);
 
     try {
-      // Notice the URL here now has /api/chat at the end!
       const response = await fetch('https://aichatapp-production-79ee.up.railway.app/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -24,11 +30,7 @@ function App() {
       });
 
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Something went wrong');
-      }
-
+      if (!response.ok) throw new Error(data.error || 'Something went wrong');
       setMessages((prev) => [...prev, { sender: 'ai', text: data.reply }]);
     } catch (error) {
       setMessages((prev) => [...prev, { sender: 'ai', text: `Error: ${error.message}` }]);
@@ -38,42 +40,18 @@ function App() {
   };
 
   return (
-    <div className="chat-container">
-      <header className="chat-header">
-        <h1>AI Chat Assistant</h1>
-        <p>Powered by React, Node, and Groq</p>
-      </header>
-
-      <div className="chat-box">
-        {messages.length === 0 ? (
-          <div className="empty-state">Say hello to start the conversation!</div>
-        ) : (
-          messages.map((msg, index) => (
-            <div key={index} className={`message-wrapper ${msg.sender}`}>
-              <div className="message-bubble">
-                {msg.text}
-              </div>
-            </div>
-          ))
-        )}
-        {isLoading && (
-          <div className="message-wrapper ai">
-            <div className="message-bubble typing">AI is typing...</div>
+    <div className="app-container">
+      <div className="chat-window">
+        {messages.map((msg, i) => (
+          <div key={i} className={`message ${msg.sender}`}>
+            <div className="bubble">{msg.text}</div>
           </div>
-        )}
+        ))}
+        {isLoading && <div className="message ai"><div className="bubble">Thinking...</div></div>}
       </div>
-
-      <form onSubmit={sendMessage} className="input-form">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type your message here..."
-          disabled={isLoading}
-        />
-        <button type="submit" disabled={isLoading || !input.trim()}>
-          Send
-        </button>
+      <form onSubmit={sendMessage} className="input-area">
+        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type a message..." disabled={isLoading} />
+        <button type="submit" disabled={isLoading}>Send</button>
       </form>
     </div>
   );
