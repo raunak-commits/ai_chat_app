@@ -1,16 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 function App() {
+  // 1. Initialize state with localStorage to persist chat
   const [messages, setMessages] = useState(() => {
     const saved = localStorage.getItem("chatHistory");
     return saved ? JSON.parse(saved) : [];
   });
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Create a ref to track the bottom of the message list
+  const messagesEndRef = useRef(null);
 
+  // 2. Save to localStorage every time messages change
   useEffect(() => {
     localStorage.setItem("chatHistory", JSON.stringify(messages));
+  }, [messages]);
+
+  // 3. Auto-scroll to bottom whenever messages update
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const sendMessage = async (e) => {
@@ -23,6 +33,7 @@ function App() {
     setIsLoading(true);
 
     try {
+      // Replace this URL with your Railway backend URL
       const response = await fetch('https://aichatapp-production-79ee.up.railway.app/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -47,10 +58,22 @@ function App() {
             <div className="bubble">{msg.text}</div>
           </div>
         ))}
-        {isLoading && <div className="message ai"><div className="bubble">Thinking...</div></div>}
+        {isLoading && (
+          <div className="message ai">
+            <div className="bubble">Thinking...</div>
+          </div>
+        )}
+        {/* This div is the anchor for auto-scrolling */}
+        <div ref={messagesEndRef} />
       </div>
+
       <form onSubmit={sendMessage} className="input-area">
-        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type a message..." disabled={isLoading} />
+        <input 
+          value={input} 
+          onChange={(e) => setInput(e.target.value)} 
+          placeholder="Type a message..." 
+          disabled={isLoading} 
+        />
         <button type="submit" disabled={isLoading}>Send</button>
       </form>
     </div>
