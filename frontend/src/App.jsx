@@ -28,20 +28,24 @@ function App() {
     if (!input.trim()) return;
 
     const userMessage = { sender: 'user', text: input };
-    setMessages((prev) => [...prev, userMessage]);
+    const newMessages = [...messages, userMessage]; // Include the new message
+    
+    setMessages(newMessages);
     setInput('');
     setIsLoading(true);
 
     try {
-      // Replace this URL with your Railway backend URL
       const response = await fetch('https://aichatapp-production-79ee.up.railway.app/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage.text }),
+        // IMPORTANT: We now send the WHOLE history (newMessages)
+        body: JSON.stringify({ messages: newMessages }), 
       });
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Something went wrong');
+      
+      // Update with AI response
       setMessages((prev) => [...prev, { sender: 'ai', text: data.reply }]);
     } catch (error) {
       setMessages((prev) => [...prev, { sender: 'ai', text: `Error: ${error.message}` }]);
