@@ -66,9 +66,27 @@ function App() {
     setActiveChatId(newChat.id);
   };
 
+  // NEW: Function to delete a chat
+  const deleteChat = (idToDelete, e) => {
+    e.stopPropagation(); // Prevents the click from selecting the chat
+    const updatedChats = chats.filter(c => c.id !== idToDelete);
+    
+    // If we delete the last chat, create a fresh one automatically
+    if (updatedChats.length === 0) {
+      const freshChat = { id: Date.now(), title: 'New Chat', messages: [] };
+      setChats([freshChat]);
+      setActiveChatId(freshChat.id);
+    } else {
+      setChats(updatedChats);
+      // If we deleted the chat we were currently looking at, switch to the top one
+      if (activeChatId === idToDelete) {
+        setActiveChatId(updatedChats[0].id);
+      }
+    }
+  };
+
   return (
     <div className="app-container">
-      {/* Sidebar - Now uses CSS classes from App.css */}
       <div className="sidebar">
         <button className="new-chat-btn" onClick={createNewChat}>+ New Chat</button>
         {chats.map(chat => (
@@ -76,13 +94,21 @@ function App() {
             key={chat.id} 
             className={`chat-item ${activeChatId === chat.id ? 'active' : ''}`}
             onClick={() => setActiveChatId(chat.id)}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
           >
-            {chat.title}
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{chat.title}</span>
+            {/* NEW: Delete Button */}
+            <button 
+              onClick={(e) => deleteChat(chat.id, e)}
+              style={{ background: 'transparent', border: 'none', color: '#ff4d4f', cursor: 'pointer', padding: '0 5px', fontSize: '16px', fontWeight: 'bold' }}
+              title="Delete Chat"
+            >
+              ×
+            </button>
           </div>
         ))}
       </div>
 
-      {/* Main Chat Area */}
       <div className="chat-area">
         <div className="chat-window">
           {activeChat.messages.map((msg, i) => (
