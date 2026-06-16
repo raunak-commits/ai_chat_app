@@ -14,8 +14,13 @@ app.get('/health', (req, res) => {
 
 app.post('/chat', async (req, res) => {
   try {
-    // 1. Change 'message' to 'messages' to receive the array
-    const { messages } = req.body; 
+    const { messages } = req.body;
+
+    // Convert frontend format (sender/text) to API format (role/content)
+    const formattedMessages = messages.map(msg => ({
+      role: msg.sender === 'user' ? 'user' : 'assistant',
+      content: msg.text
+    }));
 
     const response = await fetch(
       'https://api.groq.com/openai/v1/chat/completions',
@@ -27,8 +32,7 @@ app.post('/chat', async (req, res) => {
         },
         body: JSON.stringify({
           model: 'llama-3.3-70b-versatile',
-          // 2. Pass the entire 'messages' array directly to Groq
-          messages: messages 
+          messages: formattedMessages // Use the translated messages
         })
       }
     );
