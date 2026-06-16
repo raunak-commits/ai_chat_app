@@ -16,7 +16,8 @@ function App() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/chat', {
+      // Notice the URL here now has /api/chat at the end!
+      const response = await fetch('https://aichatapp-production-79ee.up.railway.app/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage.text }),
