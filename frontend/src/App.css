@@ -10,9 +10,9 @@ html, body {
 
 .app-container {
   display: flex;
-  flex-direction: column;
+  flex-direction: row; /* Change this from column to row */
   height: 100vh;
-  width: 100%; /* Changed from 100vw to 100% */
+  width: 100%;
   background-color: #1a1a1a;
   color: white;
 }
@@ -74,4 +74,58 @@ button {
   border: none;
   border-radius: 8px;
   cursor: pointer;
+}
+
+/* Sidebar Styling */
+.sidebar {
+  width: 260px;
+  background-color: #111;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #333;
+}
+
+.new-chat-btn {
+  width: 100%;
+  padding: 12px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.new-chat-btn:hover {
+  background-color: #0056b3;
+}
+
+.chat-item {
+  padding: 12px;
+  margin-top: 10px;
+  color: #ccc;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.2s;
+}
+
+.chat-item:hover {
+  background-color: #222;
+}
+
+.chat-item.active {
+  background-color: #333;
+  color: white;
+}
+
+.chat-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
 }

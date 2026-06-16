@@ -6,6 +6,7 @@ function App() {
     const saved = localStorage.getItem("myChats");
     return saved ? JSON.parse(saved) : [{ id: Date.now(), title: 'New Chat', messages: [] }];
   });
+  
   const [activeChatId, setActiveChatId] = useState(chats[0].id);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -26,10 +27,17 @@ function App() {
     if (!input.trim()) return;
 
     const userMessage = { sender: 'user', text: input };
+    const isFirstMessage = activeChat.messages.length === 0;
     const newMessages = [...activeChat.messages, userMessage];
 
-    // Update the specific chat
-    setChats(prev => prev.map(c => c.id === activeChatId ? { ...c, messages: newMessages } : c));
+    const newTitle = isFirstMessage ? input.substring(0, 20) : activeChat.title;
+
+    setChats(prev => prev.map(c => c.id === activeChatId ? { 
+      ...c, 
+      messages: newMessages,
+      title: newTitle 
+    } : c));
+    
     setInput('');
     setIsLoading(true);
 
@@ -43,11 +51,10 @@ function App() {
       const data = await response.json();
       setChats(prev => prev.map(c => c.id === activeChatId ? { 
         ...c, 
-        messages: [...newMessages, { sender: 'ai', text: data.reply }],
-        title: c.messages.length === 0 ? input.substring(0, 20) : c.title // Set title on first message
+        messages: [...newMessages, { sender: 'ai', text: data.reply }]
       } : c));
     } catch (error) {
-      setChats(prev => prev.map(c => c.id === activeChatId ? { ...c, messages: [...newMessages, { sender: 'ai', text: 'Error' }] } : c));
+      console.error("Error:", error);
     } finally {
       setIsLoading(false);
     }
@@ -60,19 +67,23 @@ function App() {
   };
 
   return (
-    <div className="app-container" style={{ display: 'flex', flexDirection: 'row' }}>
-      {/* Sidebar */}
-      <div className="sidebar" style={{ width: '250px', background: '#222', padding: '20px', color: 'white' }}>
-        <button onClick={createNewChat} style={{ width: '100%', marginBottom: '20px' }}>+ New Chat</button>
+    <div className="app-container">
+      {/* Sidebar - Now uses CSS classes from App.css */}
+      <div className="sidebar">
+        <button className="new-chat-btn" onClick={createNewChat}>+ New Chat</button>
         {chats.map(chat => (
-          <div key={chat.id} onClick={() => setActiveChatId(chat.id)} style={{ cursor: 'pointer', padding: '10px', background: activeChatId === chat.id ? '#444' : 'transparent', marginBottom: '5px', borderRadius: '5px' }}>
+          <div 
+            key={chat.id} 
+            className={`chat-item ${activeChatId === chat.id ? 'active' : ''}`}
+            onClick={() => setActiveChatId(chat.id)}
+          >
             {chat.title}
           </div>
         ))}
       </div>
 
       {/* Main Chat Area */}
-      <div className="chat-area" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div className="chat-area">
         <div className="chat-window">
           {activeChat.messages.map((msg, i) => (
             <div key={i} className={`message ${msg.sender}`}>
@@ -82,7 +93,11 @@ function App() {
           <div ref={messagesEndRef} />
         </div>
         <form onSubmit={sendMessage} className="input-area">
-          <input value={input} onChange={(e) => setInput(e.target.value)} />
+          <input 
+            value={input} 
+            onChange={(e) => setInput(e.target.value)} 
+            placeholder="Type a message..."
+          />
           <button type="submit">Send</button>
         </form>
       </div>
