@@ -53,6 +53,7 @@ function App() {
   const selectChat = (chatId) => {
     setActiveChatId(chatId);
     loadMessages(chatId);
+    if (window.innerWidth <= 768) setSidebarOpen(false);
   };
 
   const createNewChat = async () => {
@@ -69,6 +70,7 @@ function App() {
       setChats(prev => [data.chat, ...prev]);
       setActiveChatId(data.chat.id);
       setMessages([]);
+      if (window.innerWidth <= 768) setSidebarOpen(false);
     } catch (err) {
       console.error(err);
     }
@@ -124,7 +126,6 @@ function App() {
     setInput('');
     setIsLoading(true);
 
-    // Update title if first message
     if (messages.length === 0) {
       await fetch(`${API}/chats/${currentChatId}`, {
         method: 'PATCH',
@@ -137,7 +138,6 @@ function App() {
       setChats(prev => prev.map(c => c.id === currentChatId ? { ...c, title: input.substring(0, 25) } : c));
     }
 
-    // Save user message to DB
     await fetch(`${API}/chats/${currentChatId}/messages`, {
       method: 'POST',
       headers: {
@@ -161,7 +161,6 @@ function App() {
       const aiMessage = { sender: 'ai', text: data.reply };
       setMessages(prev => [...prev, aiMessage]);
 
-      // Save AI message to DB
       await fetch(`${API}/chats/${currentChatId}/messages`, {
         method: 'POST',
         headers: {
@@ -197,7 +196,6 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* SIDEBAR */}
       <div className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
           <span className="sidebar-title">💬 MyChat</span>
@@ -229,7 +227,6 @@ function App() {
         ))}
       </div>
 
-      {/* CHAT AREA */}
       <div className="chat-area">
         <div className="chat-header">
           {!sidebarOpen && (
@@ -258,7 +255,7 @@ function App() {
           {!activeChatId && (
             <div className="empty-state">
               <div className="empty-icon">🤖</div>
-              <h2>Hi, {user.name}! 👋</h2>
+              <h2>Hi, {user.name}!</h2>
               <p>What would you like to talk about today?</p>
               <button className="new-chat-btn" style={{ marginTop: '16px' }} onClick={createNewChat}>
                 + Start a New Chat
