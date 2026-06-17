@@ -147,7 +147,12 @@ body {
   align-items: center;
   gap: 12px;
   background: #161616;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
+
+
 
 .ai-avatar {
   font-size: 28px;
