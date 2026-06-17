@@ -1,22 +1,47 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const jwt = require('jsonwebtoken');
+const { initDB } = require('./db');
+const authRoutes = require('./auth');
 
 dotenv.config();
-const app = express();
 
+const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Init database tables
+initDB();
+
+// Auth routes
+app.use('/auth', authRoutes);
+
+// Middleware to protect routes
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) return res.status(401).json({ error: 'Access denied' });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.userId = decoded.userId;
+    next();
+  } catch (err) {
+    res.status(403).json({ error: 'Invalid token' });
+  }
+};
 
 app.get('/health', (req, res) => {
   res.json({ status: 'Server is running!' });
 });
 
-app.post('/chat', async (req, res) => {
+// Protected chat route
+app.post('/chat', authenticateToken, async (req, res) => {
   try {
     const { messages } = req.body;
 
-    // Convert frontend format (sender/text) to API format (role/content)
     const formattedMessages = messages.map(msg => ({
       role: msg.sender === 'user' ? 'user' : 'assistant',
       content: msg.text
@@ -32,7 +57,7 @@ app.post('/chat', async (req, res) => {
         },
         body: JSON.stringify({
           model: 'llama-3.3-70b-versatile',
-          messages: formattedMessages // Use the translated messages
+          messages: formattedMessages
         })
       }
     );
@@ -40,8 +65,8 @@ app.post('/chat', async (req, res) => {
     const data = await response.json();
 
     if (!response.ok) {
-       console.error("API Error details:", data);
-       return res.status(response.status).json({ error: 'Groq API Error' });
+      console.error("API Error:", data);
+      return res.status(response.status).json({ error: 'Groq API Error' });
     }
 
     const reply = data.choices[0].message.content;
