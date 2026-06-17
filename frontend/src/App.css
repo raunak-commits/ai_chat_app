@@ -333,3 +333,27 @@ body {
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+.sidebar.closed {
+  display: none;
+}
+
+.toggle-btn {
+  background: transparent;
+  border: none;
+  color: #666;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.toggle-btn:hover {
+  color: #ffffff;
+  background: #222;
+}
+
+.open-btn {
+  margin-right: 8px;
+  font-size: 20px;
+}

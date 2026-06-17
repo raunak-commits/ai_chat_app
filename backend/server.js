@@ -82,3 +82,96 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+// Get all chats for a user
+app.get('/chats', authenticateToken, async (req, res) => {
+  try {
+    const { pool } = require('./db');
+    const result = await pool.query(
+      'SELECT * FROM chats WHERE user_id = $1 ORDER BY created_at DESC',
+      [req.userId]
+    );
+    res.json({ chats: result.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get messages for a chat
+app.get('/chats/:chatId/messages', authenticateToken, async (req, res) => {
+  try {
+    const { pool } = require('./db');
+    const result = await pool.query(
+      'SELECT * FROM messages WHERE chat_id = $1 ORDER BY created_at ASC',
+      [req.params.chatId]
+    );
+    res.json({ messages: result.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create a new chat
+app.post('/chats', authenticateToken, async (req, res) => {
+  try {
+    const { pool } = require('./db');
+    const { title } = req.body;
+    const result = await pool.query(
+      'INSERT INTO chats (user_id, title) VALUES ($1, $2) RETURNING *',
+      [req.userId, title || 'New Chat']
+    );
+    res.json({ chat: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update chat title
+app.patch('/chats/:chatId', authenticateToken, async (req, res) => {
+  try {
+    const { pool } = require('./db');
+    const { title } = req.body;
+    await pool.query(
+      'UPDATE chats SET title = $1 WHERE id = $2 AND user_id = $3',
+      [title, req.params.chatId, req.userId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete a chat
+app.delete('/chats/:chatId', authenticateToken, async (req, res) => {
+  try {
+    const { pool } = require('./db');
+    await pool.query(
+      'DELETE FROM chats WHERE id = $1 AND user_id = $2',
+      [req.params.chatId, req.userId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Save a message
+app.post('/chats/:chatId/messages', authenticateToken, async (req, res) => {
+  try {
+    const { pool } = require('./db');
+    const { sender, text } = req.body;
+    const result = await pool.query(
+      'INSERT INTO messages (chat_id, sender, text) VALUES ($1, $2, $3) RETURNING *',
+      [req.params.chatId, sender, text]
+    );
+    res.json({ message: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});

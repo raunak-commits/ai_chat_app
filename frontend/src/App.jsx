@@ -2,32 +2,181 @@ import { useState, useEffect, useRef } from 'react';
 import './App.css';
 import Auth from './Auth';
 
+const API = 'https://aichatapp-production-79ee.up.railway.app';
+
 function App() {
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('user');
     return saved ? JSON.parse(saved) : null;
   });
   const [token, setToken] = useState(() => localStorage.getItem('token') || null);
-
-  const [chats, setChats] = useState(() => {
-    const saved = localStorage.getItem("myChats");
-    return saved ? JSON.parse(saved) : [{ id: Date.now(), title: 'New Chat', messages: [] }];
-  });
-
-  const [activeChatId, setActiveChatId] = useState(chats[0].id);
+  const [chats, setChats] = useState([]);
+  const [activeChatId, setActiveChatId] = useState(null);
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    localStorage.setItem("myChats", JSON.stringify(chats));
-  }, [chats]);
+    if (user && token) loadChats();
+  }, [user, token]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chats]);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading]);
 
-  const activeChat = chats.find(c => c.id === activeChatId) || chats[0];
+  const loadChats = async () => {
+    try {
+      const res = await fetch(`${API}/chats`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setChats(data.chats || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const loadMessages = async (chatId) => {
+    try {
+      const res = await fetch(`${API}/chats/${chatId}/messages`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setMessages(data.messages || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const selectChat = (chatId) => {
+    setActiveChatId(chatId);
+    loadMessages(chatId);
+  };
+
+  const createNewChat = async () => {
+    try {
+      const res = await fetch(`${API}/chats`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ title: 'New Chat' })
+      });
+      const data = await res.json();
+      setChats(prev => [data.chat, ...prev]);
+      setActiveChatId(data.chat.id);
+      setMessages([]);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const deleteChat = async (chatId, e) => {
+    e.stopPropagation();
+    try {
+      await fetch(`${API}/chats/${chatId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const updated = chats.filter(c => c.id !== chatId);
+      setChats(updated);
+      if (activeChatId === chatId) {
+        setActiveChatId(null);
+        setMessages([]);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const sendMessage = async (e) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
+
+    let currentChatId = activeChatId;
+
+    if (!currentChatId) {
+      try {
+        const res = await fetch(`${API}/chats`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ title: input.substring(0, 25) })
+        });
+        const data = await res.json();
+        setChats(prev => [data.chat, ...prev]);
+        currentChatId = data.chat.id;
+        setActiveChatId(currentChatId);
+      } catch (err) {
+        console.error(err);
+        return;
+      }
+    }
+
+    const userMessage = { sender: 'user', text: input };
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
+    setInput('');
+    setIsLoading(true);
+
+    // Update title if first message
+    if (messages.length === 0) {
+      await fetch(`${API}/chats/${currentChatId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ title: input.substring(0, 25) })
+      });
+      setChats(prev => prev.map(c => c.id === currentChatId ? { ...c, title: input.substring(0, 25) } : c));
+    }
+
+    // Save user message to DB
+    await fetch(`${API}/chats/${currentChatId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ sender: 'user', text: input })
+    });
+
+    try {
+      const res = await fetch(`${API}/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ messages: newMessages })
+      });
+
+      const data = await res.json();
+      const aiMessage = { sender: 'ai', text: data.reply };
+      setMessages(prev => [...prev, aiMessage]);
+
+      // Save AI message to DB
+      await fetch(`${API}/chats/${currentChatId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ sender: 'ai', text: data.reply })
+      });
+
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleLogin = (userData, userToken) => {
     setUser(userData);
@@ -37,89 +186,39 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    localStorage.removeItem('myChats');
     setUser(null);
     setToken(null);
+    setChats([]);
+    setMessages([]);
+    setActiveChatId(null);
   };
 
   if (!user) return <Auth onLogin={handleLogin} />;
 
-  const sendMessage = async (e) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
-
-    const userMessage = { sender: 'user', text: input };
-    const isFirstMessage = activeChat.messages.length === 0;
-    const newMessages = [...activeChat.messages, userMessage];
-    const newTitle = isFirstMessage ? input.substring(0, 25) : activeChat.title;
-
-    setChats(prev => prev.map(c => c.id === activeChatId ? {
-      ...c, messages: newMessages, title: newTitle
-    } : c));
-
-    setInput('');
-    setIsLoading(true);
-
-    try {
-      const response = await fetch('https://aichatapp-production-79ee.up.railway.app/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ messages: newMessages }),
-      });
-
-      const data = await response.json();
-      setChats(prev => prev.map(c => c.id === activeChatId ? {
-        ...c, messages: [...newMessages, { sender: 'ai', text: data.reply }]
-      } : c));
-    } catch (error) {
-      console.error("Error:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const createNewChat = () => {
-    const newChat = { id: Date.now(), title: 'New Chat', messages: [] };
-    setChats([newChat, ...chats]);
-    setActiveChatId(newChat.id);
-  };
-
-  const deleteChat = (idToDelete, e) => {
-    e.stopPropagation();
-    const updatedChats = chats.filter(c => c.id !== idToDelete);
-    if (updatedChats.length === 0) {
-      const freshChat = { id: Date.now(), title: 'New Chat', messages: [] };
-      setChats([freshChat]);
-      setActiveChatId(freshChat.id);
-    } else {
-      setChats(updatedChats);
-      if (activeChatId === idToDelete) setActiveChatId(updatedChats[0].id);
-    }
-  };
-
   return (
     <div className="app-container">
-      <div className="sidebar">
+      {/* SIDEBAR */}
+      <div className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
           <span className="sidebar-title">💬 MyChat</span>
+          <button className="toggle-btn" onClick={() => setSidebarOpen(false)}>✕</button>
         </div>
         <button className="new-chat-btn" onClick={createNewChat}>
           <span>+</span> New Chat
         </button>
         <div className="chat-list-label">Recent</div>
+        {chats.length === 0 && (
+          <div style={{ color: '#555', fontSize: '13px', padding: '8px 4px' }}>No chats yet</div>
+        )}
         {chats.map(chat => (
           <div
             key={chat.id}
             className={`chat-item ${activeChatId === chat.id ? 'active' : ''}`}
-            onClick={() => setActiveChatId(chat.id)}
+            onClick={() => selectChat(chat.id)}
           >
             <div className="chat-item-icon">💭</div>
             <div className="chat-item-info">
               <span className="chat-item-title">{chat.title}</span>
-              <span className="chat-item-count">{chat.messages.length} messages</span>
             </div>
             <button
               className="delete-btn"
@@ -130,8 +229,12 @@ function App() {
         ))}
       </div>
 
+      {/* CHAT AREA */}
       <div className="chat-area">
         <div className="chat-header">
+          {!sidebarOpen && (
+            <button className="toggle-btn open-btn" onClick={() => setSidebarOpen(true)}>☰</button>
+          )}
           <div className="ai-avatar">🤖</div>
           <div style={{ flex: 1 }}>
             <div className="ai-name">AI Assistant</div>
@@ -152,15 +255,18 @@ function App() {
         </div>
 
         <div className="chat-window">
-          {activeChat.messages.length === 0 && (
+          {!activeChatId && (
             <div className="empty-state">
               <div className="empty-icon">🤖</div>
-              <h2>How can I help you today?</h2>
-              <p>Ask me anything — I'm here to help!</p>
+              <h2>Hi, {user.name}! 👋</h2>
+              <p>What would you like to talk about today?</p>
+              <button className="new-chat-btn" style={{ marginTop: '16px' }} onClick={createNewChat}>
+                + Start a New Chat
+              </button>
             </div>
           )}
 
-          {activeChat.messages.map((msg, i) => (
+          {activeChatId && messages.map((msg, i) => (
             <div key={i} className={`message ${msg.sender}`}>
               {msg.sender === 'ai' && <div className="avatar">🤖</div>}
               <div className="bubble">{msg.text}</div>
@@ -183,7 +289,7 @@ function App() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Type a message..."
+            placeholder={activeChatId ? "Type a message..." : `Ask me anything, ${user.name}...`}
             disabled={isLoading}
           />
           <button type="submit" disabled={isLoading}>➤</button>
